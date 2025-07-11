@@ -1,0 +1,58 @@
+{% extends "polls/base.html" %}
+
+{% block title %}Мой профиль{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card shadow mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="mb-0">
+                        <i class="fas fa-user me-2"></i>Мои пройденные опросы
+                    </h3>
+                </div>
+
+                <div class="card-body">
+                    {% if surveys_with_stats %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Название опроса</th>
+                                    <th class="text-center">Дата прохождения</th>
+                                    <th class="text-center">Ваш результат</th>
+                                    <th class="text-center">Действия</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for survey_data in surveys_with_stats %}
+                                <tr>
+                                    <td>{{ survey_data.survey.title }}</td>
+                                    <td class="text-center">{{ survey_data.last_response_date|date:"d.m.Y H:i" }}</td>
+                                    <td class="text-center">
+                                        <span class="badge bg-{% if survey_data.correct_answers == survey_data.total_questions %}success{% else %}warning{% endif %}">
+                                            {{ survey_data.correct_answers }}/{{ survey_data.total_questions }}
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        <a href="{% url 'survey_results' survey_data.survey.id %}" class="btn btn-sm btn-info">
+                                            <i class="fas fa-chart-bar me-1"></i> Статистика
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info">
+                        Вы еще не прошли ни одного опроса.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

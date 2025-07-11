@@ -1,0 +1,136 @@
+{% extends "polls/base.html" %}
+
+{% block title %}{{ survey.title }}{% endblock %}
+
+{% block content %}
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <div class="card shadow mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h3 class="card-title mb-0">
+                            <i class="fas fa-poll me-2"></i>{{ survey.title }}
+                        </h3>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-text">{{ survey.description }}</p>
+
+                        <form method="post" id="surveyForm">
+                            {% csrf_token %}
+
+                            {% for question in survey.questions.all %}
+                                <div class="card mb-3 question-card">
+                                    <div class="card-body">
+                                        <h5 class="question-title">
+                                            Вопрос {{ forloop.counter }}: {{ question.text }}
+                                        </h5>
+
+                                        {% if question.question_type == 'text' %}
+                                            <div class="form-group">
+                                        <textarea class="form-control"
+                                                  name="question_{{ question.id }}"
+                                                  rows="3" required></textarea>
+                                            </div>
+
+                                        {% elif question.question_type == 'single' %}
+                                            <div class="list-group">
+                                                {% for choice in question.choices.all %}
+                                                    <label class="list-group-item">
+                                                        <input class="form-check-input me-2"
+                                                               type="radio"
+                                                               name="question_{{ question.id }}"
+                                                               value="{{ choice.id }}" required>
+                                                        {{ choice.text }}
+                                                    </label>
+                                                {% endfor %}
+                                            </div>
+
+                                        {% elif question.question_type == 'multiple' %}
+                                            <div class="list-group">
+                                                {% for choice in question.choices.all %}
+                                                    <label class="list-group-item">
+                                                        <input class="form-check-input me-2"
+                                                               type="checkbox"
+                                                               name="question_{{ question.id }}"
+                                                               value="{{ choice.id }}">
+                                                        {{ choice.text }}
+                                                    </label>
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            {% endfor %}
+
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-success btn-lg">
+                                    <i class="fas fa-paper-plane me-2"></i>Отправить ответы
+                                </button>
+                                <input type="hidden" name="next" value="{% url 'survey_results' survey.id %}">
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block extra_css %}
+    <style>
+        .question-card {
+            border-left: 4px solid #0d6efd;
+        }
+
+        .question-title {
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        .list-group-item {
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .list-group-item:hover {
+            background-color: #f8f9fa;
+        }
+    </style>
+{% endblock %}
+
+{% block extra_js %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Подсветка выбранных вариантов
+            document.querySelectorAll('.list-group-item').forEach(item => {
+                const input = item.querySelector('input');
+
+                input.addEventListener('change', function () {
+                    if (this.checked) {
+                        item.classList.add('active');
+                    } else {
+                        item.classList.remove('active');
+                    }
+                });
+            });
+
+            // Валидация формы
+            const form = document.getElementById('surveyForm');
+            form.addEventListener('submit', function (e) {
+                let isValid = true;
+
+                document.querySelectorAll('[required]').forEach(input => {
+                    if (!input.value && !input.checked) {
+                        input.classList.add('is-invalid');
+                        isValid = false;
+                    }
+                });
+
+                if (!isValid) {
+                    e.preventDefault();
+                    alert('Пожалуйста, ответьте на все обязательные вопросы!');
+                }
+            });
+        });
+    </script>
+{% endblock %}

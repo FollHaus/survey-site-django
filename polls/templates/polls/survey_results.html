@@ -1,0 +1,219 @@
+{% extends "polls/base.html" %}
+
+{% block title %}Результаты опроса: {{ survey.title }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card shadow mb-4">
+                <div class="card-header bg-info text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h3 class="mb-0">
+                            <i class="fas fa-chart-bar me-2"></i>Результаты: {{ survey.title }}
+                        </h3>
+                        <a href="{% url 'profile' %}"  class="btn btn-light btn-sm">
+                            <i class="fas fa-arrow-left me-1"></i>Назад к профилю
+                        </a>
+                    </div>
+                </div>
+                
+                <div class="card-body">
+                    <!-- Общая статистика -->
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            <div class="card text-white bg-primary mb-3">
+                                <div class="card-body text-center">
+                                    <h5 class="card-title">Всего участников</h5>
+                                    <p class="card-text display-4">{{ total_participants }}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card text-white bg-success mb-3">
+                                <div class="card-body text-center">
+                                    <h5 class="card-title">Ваши правильные ответы</h5>
+                                    <p class="card-text display-4">{{ user_correct_answers }}/{{ total_questions }}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card text-white bg-warning mb-3">
+                                <div class="card-body text-center">
+                                    <h5 class="card-title">Отвечают в среднем</h5>
+                                    <p class="card-text display-4">{{ avg_correct_answers|floatformat:"0" }}/{{ total_questions }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Результаты по вопросам -->
+                    {% for question in questions_with_stats %}
+                    <div class="card mb-4 question-result">
+                        <div class="card-header">
+                            <h5 class="mb-0">Вопрос {{ forloop.counter }}: {{ question.text }}</h5>
+                            <small class="text-muted">
+                                Тип: {{ question.get_question_type_display }}
+                            </small>
+                        </div>
+
+                        <div class="card-body">
+                            <div class="row">
+                                <!-- График -->
+                                <div class="col-md-7">
+                                    <div class="chart-container">
+                                        <canvas id="chart-{{ question.id }}"></canvas>
+                                    </div>
+                                </div>
+
+                                <!-- Статистика -->
+                                <div class="col-md-5">
+                                    <h6 class="mb-3">Статистика ответов:</h6>
+
+                                    {% if question.question_type == 'text' %}
+                                        <div class="mb-3">
+                                            <p class="fw-bold">Правильный ответ:</p>
+                                            <p class="bg-light p-2 rounded">{{ question.correct_answer_text }}</p>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <p class="fw-bold">Ваш ответ:</p>
+                                            <p class="bg-light p-2 rounded">{{ question.user_answer.text_answer|default:"-" }}</p>
+                                            <span class="badge bg-{% if question.user_answer.is_correct %}success{% else %}danger{% endif %}">
+                                                {% if question.user_answer.is_correct %}
+                                                    <i class="fas fa-check me-1"></i>Правильно
+                                                {% else %}
+                                                    <i class="fas fa-times me-1"></i>Неправильно
+                                                {% endif %}
+                                            </span>
+                                        </div>
+
+                                    {% else %}
+                                        <ul class="list-group">
+                                            {% for choice in question.choices  %}
+                                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                                {{ choice.text }}
+                                                <span class="badge bg-primary rounded-pill">
+                                                    {{ choice.response_count }} ({{ choice.response_percentage }}%)
+                                                </span>
+                                                {% if choice.is_correct %}
+                                                    <span class="badge bg-success ms-2">
+                                                        <i class="fas fa-check"></i>
+                                                    </span>
+                                                {% endif %}
+                                                {% if choice.user_selected %}
+                                                    <span class="badge bg-info ms-2">
+                                                        <i class="fas fa-user"></i> Ваш выбор
+                                                    </span>
+                                                {% endif %}
+                                            </li>
+                                            {% endfor %}
+                                        </ul>
+
+                                        <div class="mt-3">
+                                            <span class="badge bg-{% if question.user_answer.is_correct %}success{% else %}danger{% endif %}">
+                                                {% if question.user_answer.is_correct %}
+                                                    <i class="fas fa-check me-1"></i>Вы ответили правильно
+                                                {% else %}
+                                                    <i class="fas fa-times me-1"></i>Вы ответили неправильно
+                                                {% endif %}
+                                            </span>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .question-result {
+        border-left: 4px solid #0dcaf0;
+    }
+    .chart-container {
+        position: relative;
+        height: 250px;
+    }
+    .list-group-item {
+        position: relative;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Создаем графики для каждого вопроса
+    {% for question in questions_with_stats %}
+        {% if question.question_type != 'text' %}
+            const ctx{{ question.id }} = document.getElementById('chart-{{ question.id }}');
+            new Chart(ctx{{ question.id }}, {
+                type: '{{ question.chart_type }}',
+                data: {
+                    labels: [{% for choice in question.choices %}'{{ choice.text }}',{% endfor %}],
+                    datasets: [{
+                        label: 'Количество ответов',
+                                                data: [
+                            {% for choice in question.choices %}
+                                {{ choice.response_count }},
+                            {% endfor %}
+                        ],
+                        backgroundColor: [
+                            {% for choice in question.choices %}
+                                {% if choice.is_correct %}
+                                    'rgba(40, 167, 69, 0.7)',
+                                {% else %}
+                                    'rgba(13, 110, 253, 0.7)',
+                                {% endif %}
+                            {% endfor %}
+                        ],
+                        borderColor: [
+                            {% for choice in question.choices %}
+                                {% if choice.is_correct %}
+                                    'rgba(40, 167, 69, 1)',
+                                {% else %}
+                                    'rgba(13, 110, 253, 1)',
+                                {% endif %}
+                            {% endfor %}
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.raw + ' (' + Math.round(context.parsed * 100 / context.dataset.data.reduce((a, b) => a + b, 0)) + '%)';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                precision: 0
+                            }
+                        }
+                    }
+                }
+            });
+        {% endif %}
+    {% endfor %}
+});
+</script>
+{% endblock %}
